@@ -12,8 +12,7 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 
 Adafruit_BME280 bme;
-
-unsigned long delayTime;
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
 
 float humidity;
 float temperature;
@@ -26,10 +25,19 @@ int relayHumidityPin = D4;
 
 const float SET_TEMPERATURE = 12.0;
 const float SET_HUMIDITY = 80.0;
+const float TEMPERATURE_HYSTERESIS = 1.5;
+const float HUMIDITY_HYSTERESIS = 2.5;
 
-LiquidCrystal_I2C lcd(0x3F, 16, 2);
+#define LOOP_PERIOD_MS  1000 // 1 sec
+#define INTERVAL  1 // 2 mins
+
+uint32_t startMillis = 0;
+uint32_t currentMillis = 0;
+uint16_t loopCnt = 0;
+
 void setup() {
   Serial.begin(9600);
+  while (!Serial) continue;
   
   pinMode(relayTemperaturePin, OUTPUT);
   digitalWrite(relayTemperaturePin, HIGH);
@@ -39,21 +47,33 @@ void setup() {
   bme.begin(0x76);  
   lcd.init();
   lcd.backlight();
+
+  startMillis = millis();
 }
+
 void loop() {
+  currentMillis = millis();
   temperature = bme.readTemperature();
   humidity = bme.readHumidity();
+  if (currentMillis - startMillis >= LOOP_PERIOD_MS) {
+    startMillis = currentMillis;
+
+    if (!(loopCnt % (INTERVAL * 60))) {
+      handleTemperatureRelay(temperature);
+      handleHumidityRelay(humidity);
+    }
+    loopCnt++;
+  }
 
   printOnLcd(temperature, humidity);
-
-  handleTemperatureRelay(temperature);
-  handleHumidityRelay(humidity);  
-  delay(40000);
 }
 
 void printOnLcd(float temperature, float humidity) {
-  sprintf(temperatureMessage, "Temp: %.1f", temperature);
-  sprintf(humidityMessage, "Wilgoc: %.1f", humidity);  
+  String tempRelayState = getRelayState(relayTemperaturePin);
+  String humidityRelayState = getRelayState(relayHumidityPin);
+  
+  sprintf(temperatureMessage, "Temp:  %.1f %s", temperature, const_cast<char*>(tempRelayState.c_str()));
+  sprintf(humidityMessage, "Wilgoc:%.1f %s", humidity, const_cast<char*>(humidityRelayState.c_str()));  
   lcd.setCursor(0, 0);
   lcd.print(temperatureMessage); // Print the string "Hello World!"
   lcd.setCursor(0, 1); //Set the cursor on the third column and the second row (counting starts at 0!).
@@ -61,21 +81,31 @@ void printOnLcd(float temperature, float humidity) {
 }
 
 void handleTemperatureRelay(float temperature) {
-  int relayState;
-  if (temperature > SET_TEMPERATURE) {
-    relayState = LOW; // ON
-  } else {
-    relayState = HIGH; // OFF
+  if (temperature - TEMPERATURE_HYSTERESIS / 2 >= SET_TEMPERATURE) {
+    digitalWrite(relayTemperaturePin, LOW);
   }
-  digitalWrite(relayTemperaturePin, relayState);
+  else if (temperature + TEMPERATURE_HYSTERESIS / 2 <= SET_TEMPERATURE) {
+    digitalWrite(relayTemperaturePin, HIGH);
+  }
 }
 
 void handleHumidityRelay(float humidity) {
-  int relayState;
-  if (humidity < SET_HUMIDITY) {
-    relayState = LOW;
-  } else {
-    relayState = HIGH;
+  if (humidity - HUMIDITY_HYSTERESIS / 2 <= SET_HUMIDITY) {
+    digitalWrite(relayHumidityPin, LOW);
   }
-  digitalWrite(relayHumidityPin, relayState);
+  else if (humidity + HUMIDITY_HYSTERESIS / 2 >= SET_HUMIDITY) {
+    digitalWrite(relayHumidityPin, HIGH);
+  }
+}
+
+String getRelayState(int relayPin){
+  boolean relayState = digitalRead(relayPin);
+  String relayMessage;
+
+  if(relayState){
+    relayMessage = "OFF";
+  } else {
+    relayMessage = "ON ";
+  }
+  return relayMessage;
 }
