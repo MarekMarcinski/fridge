@@ -36,76 +36,74 @@ uint32_t currentMillis = 0;
 uint16_t loopCnt = 0;
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial) continue;
-  
-  pinMode(relayTemperaturePin, OUTPUT);
-  digitalWrite(relayTemperaturePin, HIGH);
-  pinMode(relayHumidityPin, OUTPUT);
-  digitalWrite(relayHumidityPin, HIGH);
+    Serial.begin(9600);
+    while (!Serial) continue;
 
-  bme.begin(0x76);  
-  lcd.init();
-  lcd.backlight();
+    pinMode(relayTemperaturePin, OUTPUT);
+    digitalWrite(relayTemperaturePin, HIGH);
+    pinMode(relayHumidityPin, OUTPUT);
+    digitalWrite(relayHumidityPin, HIGH);
 
-  startMillis = millis();
+    bme.begin(0x76);
+    lcd.init();
+    lcd.backlight();
+
+    startMillis = millis();
 }
 
 void loop() {
-  currentMillis = millis();
-  temperature = bme.readTemperature();
-  humidity = bme.readHumidity();
-  if (currentMillis - startMillis >= LOOP_PERIOD_MS) {
-    startMillis = currentMillis;
+    currentMillis = millis();
+    temperature = bme.readTemperature();
+    humidity = bme.readHumidity();
+    if (currentMillis - startMillis >= LOOP_PERIOD_MS) {
+        startMillis = currentMillis;
 
-    if (!(loopCnt % (INTERVAL * 60))) {
-      handleTemperatureRelay(temperature);
-      handleHumidityRelay(humidity);
+        if (!(loopCnt % (INTERVAL * 60))) {
+            handleTemperatureRelay(temperature);
+            handleHumidityRelay(humidity);
+        }
+        loopCnt++;
     }
-    loopCnt++;
-  }
 
-  printOnLcd(temperature, humidity);
+    printOnLcd(temperature, humidity);
 }
 
 void printOnLcd(float temperature, float humidity) {
-  String tempRelayState = getRelayState(relayTemperaturePin);
-  String humidityRelayState = getRelayState(relayHumidityPin);
-  
-  sprintf(temperatureMessage, "Temp:  %.1f %s", temperature, const_cast<char*>(tempRelayState.c_str()));
-  sprintf(humidityMessage, "Wilgoc:%.1f %s", humidity, const_cast<char*>(humidityRelayState.c_str()));  
-  lcd.setCursor(0, 0);
-  lcd.print(temperatureMessage); // Print the string "Hello World!"
-  lcd.setCursor(0, 1); //Set the cursor on the third column and the second row (counting starts at 0!).
-  lcd.print(humidityMessage);
+    String tempRelayState = getRelayState(relayTemperaturePin);
+    String humidityRelayState = getRelayState(relayHumidityPin);
+
+    sprintf(temperatureMessage, "Temp:  %.1f %s", temperature, const_cast<char *>(tempRelayState.c_str()));
+    sprintf(humidityMessage, "Wilgoc:%.1f %s", humidity, const_cast<char *>(humidityRelayState.c_str()));
+    lcd.setCursor(0, 0);
+    lcd.print(temperatureMessage); // Print the string "Hello World!"
+    lcd.setCursor(0, 1); //Set the cursor on the third column and the second row (counting starts at 0!).
+    lcd.print(humidityMessage);
 }
 
 void handleTemperatureRelay(float temperature) {
-  if (temperature - TEMPERATURE_HYSTERESIS / 2 >= SET_TEMPERATURE) {
-    digitalWrite(relayTemperaturePin, LOW);
-  }
-  else if (temperature + TEMPERATURE_HYSTERESIS / 2 <= SET_TEMPERATURE) {
-    digitalWrite(relayTemperaturePin, HIGH);
-  }
+    if (temperature - TEMPERATURE_HYSTERESIS / 2 >= SET_TEMPERATURE) {
+        digitalWrite(relayTemperaturePin, LOW);
+    } else if (temperature + TEMPERATURE_HYSTERESIS / 2 <= SET_TEMPERATURE) {
+        digitalWrite(relayTemperaturePin, HIGH);
+    }
 }
 
 void handleHumidityRelay(float humidity) {
-  if (humidity - HUMIDITY_HYSTERESIS / 2 <= SET_HUMIDITY) {
-    digitalWrite(relayHumidityPin, LOW);
-  }
-  else if (humidity + HUMIDITY_HYSTERESIS / 2 >= SET_HUMIDITY) {
-    digitalWrite(relayHumidityPin, HIGH);
-  }
+    if (humidity - HUMIDITY_HYSTERESIS / 2 <= SET_HUMIDITY) {
+        digitalWrite(relayHumidityPin, LOW);
+    } else if (humidity + HUMIDITY_HYSTERESIS / 2 >= SET_HUMIDITY) {
+        digitalWrite(relayHumidityPin, HIGH);
+    }
 }
 
-String getRelayState(int relayPin){
-  boolean relayState = digitalRead(relayPin);
-  String relayMessage;
+String getRelayState(int relayPin) {
+    boolean relayState = digitalRead(relayPin);
+    String relayMessage;
 
-  if(relayState){
-    relayMessage = "OFF";
-  } else {
-    relayMessage = "ON ";
-  }
-  return relayMessage;
+    if (relayState) {
+        relayMessage = "OFF";
+    } else {
+        relayMessage = "ON ";
+    }
+    return relayMessage;
 }
