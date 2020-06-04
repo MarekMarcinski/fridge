@@ -1,18 +1,10 @@
 #include <Wire.h> // Library for I2C communication
 #include <LiquidCrystal_I2C.h> // Library for LCD
 #include <SPI.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+#include <SHT3x.h>
 
-#define BME_SCK 13
-#define BME_MISO 12
-#define BME_MOSI 11
-#define BME_CS 10
-
-#define SEALEVELPRESSURE_HPA (1013.25)
-
-Adafruit_BME280 bme;
 LiquidCrystal_I2C lcd(0x3F, 16, 2);
+SHT3x sensor;
 
 float humidity;
 float temperature;
@@ -44,7 +36,7 @@ void setup() {
     pinMode(relayHumidityPin, OUTPUT);
     digitalWrite(relayHumidityPin, HIGH);
 
-    bme.begin(0x76);
+    sensor.Begin();
     lcd.init();
     lcd.backlight();
 
@@ -53,8 +45,9 @@ void setup() {
 
 void loop() {
     currentMillis = millis();
-    temperature = bme.readTemperature();
-    humidity = bme.readHumidity();
+    temperature = sensor.GetTemperature();
+    humidity = sensor.GetRelHumidity();
+    sensor.UpdateData();
     if (currentMillis - startMillis >= LOOP_PERIOD_MS) {
         startMillis = currentMillis;
 
